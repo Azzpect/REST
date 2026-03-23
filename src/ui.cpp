@@ -1,13 +1,44 @@
 #include "ui.hpp"
 #include "iostream"
+#include "nlohmann/json.hpp"
 #include <asm-generic/ioctls.h>
+#include <filesystem>
+#include <fstream>
 #include <ostream>
 #include <string>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <vector>
 
 bool running = true;
+
+UI::UIData::UIData() {
+  this->active = 0;
+  if (!(std::filesystem::exists(this->appdata_dir) &&
+        std::filesystem::is_directory(this->appdata_dir))) {
+    std::filesystem::create_directory(this->appdata_dir);
+    std::ofstream file(this->appdata_file);
+    if (!file.is_open()) {
+      std::cout << "Failed to create appdata file!!!" << std::endl;
+      exit(1);
+    }
+    file << "{}";
+    file.close();
+    this->appdata = nlohmann::json();
+  } else if (!std::filesystem::exists(this->appdata_file)) {
+    std::ofstream file(this->appdata_file);
+    if (!file.is_open()) {
+      std::cout << "Failed to create appdata file!!!" << std::endl;
+      exit(1);
+    }
+    file << "{}";
+    file.close();
+    this->appdata = nlohmann::json();
+  } else {
+    std::ifstream file(this->appdata_file);
+    this->appdata = nlohmann::json::parse(file);
+    file.close();
+  }
+}
 
 void UI::home() {
   std::cout << "\x1b[3J\x1b[2J\x1b[H\x1b[?25l";
@@ -37,14 +68,18 @@ void UI::home() {
 void UI::ui() {
   while (running) {
     int active = UI::ui_data.get_activeItem();
-    std::vector<std::string> items = UI::ui_data.getItems();
+    nlohmann::json data = UI::ui_data.getAppdata();
     std::cout << "\x1b[3J\x1b[2J\x1b[H\x1b[?25l";
-    if (size_t(active) == items.size())
-      active = items.size() - 1;
-    if (int(active) < 0)
-      active = 0;
-    for (size_t i = 0; i < items.size(); i++) {
-      UI::display(items[i], int(i) == active);
+    if (data.size() == 0) {
+      UI::display("No data available", true);
+    } else {
+      if (size_t(active) == data.size())
+        active = data.size() - 1;
+      if (int(active) < 0)
+        active = 0;
+      for (size_t i = 0; i < data.size(); i++) {
+        UI::display(data[i], int(i) == active);
+      }
     }
 
     int key = UI::read_key();
@@ -122,8 +157,6 @@ void UI::createNewItem() {
       std::cout.flush();
     }
   }
-
-  UI::ui_data.pushItem(entry);
 
   // hide cursor again after input
   std::cout << "\x1b[?25l";

@@ -1,7 +1,9 @@
 #pragma once
 
+#include "nlohmann/json.hpp"
 #include "string"
 #include "vector"
+#include <cstdlib>
 #include <vector>
 
 #define TL "┌" // top-left
@@ -29,19 +31,16 @@ const std::string options[] = {
 
 class UIData {
   int active;
-  std::vector<std::string> items;
+  nlohmann::json appdata;
+  std::string appdata_dir = std::string(std::getenv("HOME")) + "/.local/share/rest";
+  std::string appdata_file = std::string(std::getenv("HOME")) + "/.local/share/rest/appdata.json";
 
   public:
-  UIData() { 
-    active = 0; 
-    items = {"hello world", "bye world", "new world", "old world"};
-  }
-
+  UIData();
   int get_activeItem() { return active; }
   void inc_active() { active++; }
   void dec_active() { active--; }
-  std::vector<std::string> getItems() { return items; }
-  void pushItem(const std::string& item) { items.push_back(item); }
+  nlohmann::json getAppdata() { return appdata; }
 };
 
 void home();
