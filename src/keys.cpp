@@ -10,10 +10,10 @@ int UI::read_key() {
 void UI::handleKeyStroke(const char &key) {
   switch (key) {
   case 'j':
-    UI::ui_data.inc_active();
+    UI::active++;
     break;
   case 'k':
-    UI::ui_data.dec_active();
+    UI::active--;
     break;
   case 'q':
     exit(0);

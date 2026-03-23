@@ -12,6 +12,7 @@ add_executable(rest
   ${CMAKE_SOURCE_DIR}/src/main.cpp
   ${CMAKE_SOURCE_DIR}/src/ui.cpp
   ${CMAKE_SOURCE_DIR}/src/keys.cpp
+  ${CMAKE_SOURCE_DIR}/src/appdata.cpp
 )
 
 target_compile_options(rest PRIVATE -Wall -Wextra -Werror -Wno-pedantic)

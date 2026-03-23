@@ -1,44 +1,14 @@
 #include "ui.hpp"
-#include "iostream"
+#include "appdata.hpp"
 #include "nlohmann/json.hpp"
-#include <asm-generic/ioctls.h>
-#include <filesystem>
-#include <fstream>
-#include <ostream>
+#include <iostream>
 #include <string>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
 bool running = true;
 
-UI::UIData::UIData() {
-  this->active = 0;
-  if (!(std::filesystem::exists(this->appdata_dir) &&
-        std::filesystem::is_directory(this->appdata_dir))) {
-    std::filesystem::create_directory(this->appdata_dir);
-    std::ofstream file(this->appdata_file);
-    if (!file.is_open()) {
-      std::cout << "Failed to create appdata file!!!" << std::endl;
-      exit(1);
-    }
-    file << "{}";
-    file.close();
-    this->appdata = nlohmann::json();
-  } else if (!std::filesystem::exists(this->appdata_file)) {
-    std::ofstream file(this->appdata_file);
-    if (!file.is_open()) {
-      std::cout << "Failed to create appdata file!!!" << std::endl;
-      exit(1);
-    }
-    file << "{}";
-    file.close();
-    this->appdata = nlohmann::json();
-  } else {
-    std::ifstream file(this->appdata_file);
-    this->appdata = nlohmann::json::parse(file);
-    file.close();
-  }
-}
+AppDataNS::AppData appdata;
 
 void UI::home() {
   std::cout << "\x1b[3J\x1b[2J\x1b[H\x1b[?25l";
@@ -67,34 +37,30 @@ void UI::home() {
 }
 void UI::ui() {
   while (running) {
-    int active = UI::ui_data.get_activeItem();
-    nlohmann::json data = UI::ui_data.getAppdata();
+    AppDataNS::Dir data = appdata.appdata;
     std::cout << "\x1b[3J\x1b[2J\x1b[H\x1b[?25l";
-    if (data.size() == 0) {
-      UI::display("No data available", true);
-    } else {
-      if (size_t(active) == data.size())
-        active = data.size() - 1;
-      if (int(active) < 0)
-        active = 0;
-      for (size_t i = 0; i < data.size(); i++) {
-        UI::display(data[i], int(i) == active);
-      }
-    }
+    std::cout << "  🗁  " << data.name << "/" << std::endl;
+    UI::displayDir(data);
 
     int key = UI::read_key();
     handleKeyStroke(key);
   }
 }
 
-void UI::display(const std::string &item, const bool &highlight) {
-  std::string pad(5, ' ');
-  if (highlight)
-    std::cout << "\x1b[43m";
-  std::cout << pad << item << pad;
-  if (highlight)
-    std::cout << "\x1b[m";
-  std::cout << std::endl;
+void UI::displayDir(const AppDataNS::Dir &dir) {
+  if (dir.dirs.size() + dir.requests.size() == 0) {
+    std::string pad(5, ' ');
+    std::cout << pad << "No records found!!!" << pad << std::endl;
+    return;
+  }
+  for (auto d : dir.dirs) {
+    std::string pad(5, ' ');
+    std::cout << pad << CLOSED_DIR << "  " << d.name << pad << std::endl;
+  }
+  for (auto r : dir.requests) {
+    std::string pad(5 - r.method.size(), ' ');
+    std::cout << pad << r.method << "   " << r.name << pad << std::endl;
+  }
 }
 
 void UI::drawInputBox() {
@@ -113,10 +79,10 @@ void UI::drawInputBox() {
   std::cout << TR;
 
   std::cout << "\x1b[" << row << ";" << col << "H";
-  std::cout << V;
+  std::cout << VR;
   for (int i = 0; i < width; i++)
     std::cout << " ";
-  std::cout << V;
+  std::cout << VR;
 
   std::cout << "\x1b[" << row + 1 << ";" << col << "H";
   std::cout << BL;
