@@ -40,19 +40,23 @@ public:
 };
 class WorkTree {
 public:
-  WorkTree(const AppDataNS::Dir &);
+  WorkTree(const AppDataNS::Dir *);
+  WorkTree(const AppDataNS::Dir *, WorkTree *);
   std::string name;
-  AppDataNS::Dir parent;
+  WorkTree* parent;
   std::vector<TreeItem> treeItems;
 };
 
 void home();
 void ui();
 void displayTree(const WorkTree &);
+void goToChild(const TreeItem *, WorkTree *);
+void backToParent();
 void handleKeyStroke(const char &);
 int read_key();
 void drawInputBox();
 void createNewItem();
 
 inline size_t active = 0;
+inline WorkTree* tree = nullptr;
 } // namespace UI

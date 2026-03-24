@@ -1,5 +1,5 @@
-#include "unistd.h"
 #include "ui.hpp"
+#include "unistd.h"
 
 int UI::read_key() {
   char c;
@@ -20,6 +20,13 @@ void UI::handleKeyStroke(const char &key) {
     break;
   case 'a':
     UI::createNewItem();
+    break;
+  case 'l':
+    if (tree->treeItems.size() == 0) break;
+    UI::goToChild(&tree->treeItems[active], tree);
+    break;
+  case 'h':
+    UI::backToParent();
     break;
   }
 }
