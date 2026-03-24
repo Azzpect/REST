@@ -1,7 +1,7 @@
 #include "ui.hpp"
 #include "appdata.hpp"
-#include "nlohmann/json.hpp"
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -36,30 +36,50 @@ void UI::home() {
   }
 }
 void UI::ui() {
+  UI::WorkTree tree(appdata.appdata);
   while (running) {
-    AppDataNS::Dir data = appdata.appdata;
     std::cout << "\x1b[3J\x1b[2J\x1b[H\x1b[?25l";
-    std::cout << "  🗁  " << data.name << "/" << std::endl;
-    UI::displayDir(data);
+    std::cout << "  🗁  " << tree.name << "/" << std::endl;
+
+    if (active >= tree.treeItems.size()) {
+      active = 0;
+    }
+
+
+    UI::displayTree(tree);
 
     int key = UI::read_key();
     handleKeyStroke(key);
   }
 }
 
-void UI::displayDir(const AppDataNS::Dir &dir) {
-  if (dir.dirs.size() + dir.requests.size() == 0) {
+void UI::displayTree(const UI::WorkTree &tree) {
+  if (tree.treeItems.size() == 0) {
     std::string pad(5, ' ');
     std::cout << pad << "No records found!!!" << pad << std::endl;
     return;
   }
-  for (auto d : dir.dirs) {
-    std::string pad(5, ' ');
-    std::cout << pad << CLOSED_DIR << "  " << d.name << pad << std::endl;
-  }
-  for (auto r : dir.requests) {
-    std::string pad(5 - r.method.size(), ' ');
-    std::cout << pad << r.method << "   " << r.name << pad << std::endl;
+  for (size_t i = 0; i < tree.treeItems.size(); i++) {
+    if (tree.treeItems[i].type == DIR) {
+      std::string pad(5, ' ');
+      if (active == i) {
+        std::cout << "\x1b[41m" << pad << CLOSED_DIR << "  "
+                  << tree.treeItems[i].name << pad << "\x1b[m" << std::endl;
+      } else {
+        std::cout << pad << CLOSED_DIR << "  " << tree.treeItems[i].name << pad
+                  << std::endl;
+      }
+    } else {
+      std::string pad(5 - tree.treeItems[i].reqptr->method.size(), ' ');
+      if (active == i) {
+        std::cout << "\x1b[41m" << pad << tree.treeItems[i].reqptr->method
+                  << "   " << tree.treeItems[i].name << pad << "\x1b[m"
+                  << std::endl;
+      } else {
+        std::cout << pad << tree.treeItems[i].reqptr->method << "   "
+                  << tree.treeItems[i].name << pad << std::endl;
+      }
+    }
   }
 }
 
@@ -127,4 +147,35 @@ void UI::createNewItem() {
   // hide cursor again after input
   std::cout << "\x1b[?25l";
   std::cout.flush();
+}
+
+UI::TreeItem::TreeItem(const AppDataNS::Dir *dir) {
+  if (dir == nullptr) {
+    throw std::runtime_error("couldn't create worktree");
+  }
+  this->name = dir->name;
+  this->type = DIR;
+  this->reqptr = nullptr;
+  this->dirptr = dir;
+}
+
+UI::TreeItem::TreeItem(const AppDataNS::Request *req) {
+  if (req == nullptr) {
+    throw std::runtime_error("couldn't create worktree");
+  }
+  this->name = req->name;
+  this->type = REQ;
+  this->reqptr = req;
+  this->dirptr = nullptr;
+}
+
+UI::WorkTree::WorkTree(const AppDataNS::Dir &dir) {
+  this->name = dir.name;
+
+  for (const AppDataNS::Dir &dir : dir.dirs) {
+    this->treeItems.push_back(UI::TreeItem(&dir));
+  }
+  for (const AppDataNS::Request &req : dir.requests) {
+    this->treeItems.push_back(UI::TreeItem(&req));
+  }
 }

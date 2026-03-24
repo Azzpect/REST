@@ -1,6 +1,7 @@
 #include "appdata.hpp"
 #include <iostream>
 #include <fstream>
+#include "nlohmann/json.hpp"
 
 AppDataNS::Request::Request(const std::string& n) {
   this->name = n;
