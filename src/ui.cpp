@@ -13,9 +13,8 @@ AppDataNS::AppData appdata;
 void UI::home() {
   std::cout << "\x1b[3J\x1b[2J\x1b[H\x1b[?25l";
 
-  struct winsize w;
-  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-  int mid = w.ws_col / 2;
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &UI::w);
+  int mid = UI::w.ws_col / 2;
 
   std::cout << "\x1b[10;H";
   for (std::string line : UI::icon) {
@@ -36,10 +35,12 @@ void UI::home() {
   }
 }
 void UI::ui() {
+  std::cout << "\x1b[3J\x1b[2J\x1b[H\x1b[?25l";
   UI::tree = new UI::WorkTree(&appdata.appdata);
+  for (int i = 0; i < UI::w.ws_row; i++) {
+    std::cout << "\x1b[30G" << VR << std::endl;
+  }
   while (running) {
-    std::cout << "\x1b[3J\x1b[2J\x1b[H\x1b[?25l";
-    std::cout << "  🗁  " << tree->name << "/" << std::endl;
 
     if (active >= tree->treeItems.size()) {
       active = 0;
@@ -53,33 +54,48 @@ void UI::ui() {
 }
 
 void UI::displayTree(const UI::WorkTree &tree) {
+  std::cout << "\x1b[H" << "  🗁  " << tree.name << "/" << std::endl;
+  size_t i = 0;
+
   if (tree.treeItems.size() == 0) {
-    std::string pad(6, ' ');
-    std::cout << pad << "No records found!!!" << pad << std::endl;
-    return;
-  }
-  for (size_t i = 0; i < tree.treeItems.size(); i++) {
-    if (tree.treeItems[i].type == DIR) {
-      std::string pad(6, ' ');
-      if (active == i) {
-        std::cout << "\x1b[41m" << pad << CLOSED_DIR << "  "
-                  << tree.treeItems[i].name << pad << "\x1b[m" << std::endl;
+    std::string pad(3, ' ');
+    std::cout << "\x1b[" << i + 2 << ";0H" << pad << "No records found!!!"
+              << pad << std::endl;
+    i++;
+  } else {
+    for (; i < tree.treeItems.size(); i++) {
+      std::cout << "\x1b[" << i + 2 << ";0H";
+      if (tree.treeItems[i].type == DIR) {
+        std::string pad(6, ' ');
+        std::string line =
+            pad + std::string(CLOSED_DIR) + "  " + tree.treeItems[i].name;
+        std::string line_with_pad =
+            line + std::string(treeItemWidth - line.size() + 3, ' ');
+
+        if (active == i) {
+          std::cout << "\x1b[41m" << line_with_pad << "\x1b[m" << std::endl;
+        } else {
+          std::cout << line_with_pad << std::endl;
+        }
       } else {
-        std::cout << pad << CLOSED_DIR << "  " << tree.treeItems[i].name << pad
-                  << std::endl;
-      }
-    } else {
-      std::string pad(6 - tree.treeItems[i].reqptr->method.size(), ' ');
-      if (active == i) {
-        std::cout << "\x1b[41m" << pad << tree.treeItems[i].reqptr->method
-                  << "   " << tree.treeItems[i].name << std::string(6, ' ') << "\x1b[m"
-                  << std::endl;
-      } else {
-        std::cout << pad << tree.treeItems[i].reqptr->method << "   "
-                  << tree.treeItems[i].name << std::string(6, ' ') << std::endl;
+        std::string pad(6 - tree.treeItems[i].reqptr->method.size(), ' ');
+        std::string line = pad + tree.treeItems[i].reqptr->method + "   " +
+                           tree.treeItems[i].name;
+        std::string line_with_pad =
+            line + std::string(treeItemWidth - line.size(), ' ');
+        if (active == i) {
+
+          std::cout << "\x1b[41m" << line_with_pad << "\x1b[m" << std::endl;
+        } else {
+          std::cout << line_with_pad << std::endl;
+        }
       }
     }
   }
+  for (; i < UI::w.ws_row; i++) {
+    std::cout << "\x1b[" << i + 2 << ";0H" << std::string(treeItemWidth, ' ');
+  }
+  std::cout.flush();
 }
 
 void UI::drawInputBox() {
@@ -115,13 +131,15 @@ void UI::drawInputBox() {
 }
 
 void UI::goToChild(const TreeItem *item, UI::WorkTree *parent) {
-  if (item->type == REQ) return; 
+  if (item->type == REQ)
+    return;
   tree = new UI::WorkTree(item->dirptr, parent);
   active = 0;
 }
 
 void UI::backToParent() {
-  if (tree->parent == nullptr) return;
+  if (tree->parent == nullptr)
+    return;
   tree = tree->parent;
   active = 0;
 }
@@ -180,7 +198,7 @@ UI::TreeItem::TreeItem(const AppDataNS::Request *req) {
   this->dirptr = nullptr;
 }
 
-UI::WorkTree::WorkTree(const AppDataNS::Dir* dir) {
+UI::WorkTree::WorkTree(const AppDataNS::Dir *dir) {
   this->name = dir->name;
   this->parent = nullptr;
 
@@ -192,7 +210,7 @@ UI::WorkTree::WorkTree(const AppDataNS::Dir* dir) {
   }
 }
 
-UI::WorkTree::WorkTree(const AppDataNS::Dir* dir, WorkTree* parent) {
+UI::WorkTree::WorkTree(const AppDataNS::Dir *dir, WorkTree *parent) {
   this->name = dir->name;
   this->parent = parent;
 

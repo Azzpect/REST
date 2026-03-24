@@ -2,6 +2,7 @@
 
 #include "appdata.hpp"
 #include "string"
+#include <sys/ioctl.h>
 
 #define TL "┌" // top-left
 #define TR "┐" // top-right
@@ -57,6 +58,8 @@ int read_key();
 void drawInputBox();
 void createNewItem();
 
+inline size_t treeItemWidth = 29;
 inline size_t active = 0;
+inline struct winsize w;
 inline WorkTree* tree = nullptr;
 } // namespace UI
