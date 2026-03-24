@@ -1,6 +1,7 @@
 #include "ui.hpp"
 #include "appdata.hpp"
 #include <iostream>
+#include <regex>
 #include <stdexcept>
 #include <string>
 #include <sys/ioctl.h>
@@ -36,39 +37,40 @@ void UI::home() {
 }
 void UI::ui() {
   std::cout << "\x1b[3J\x1b[2J\x1b[H\x1b[?25l";
-  UI::tree = new UI::WorkTree(&appdata.appdata);
+  UI::worktree = new UI::TreeItem(&appdata.appdata);
   for (int i = 0; i < UI::w.ws_row; i++) {
     std::cout << "\x1b[30G" << VR << std::endl;
   }
   while (running) {
 
-    if (active >= tree->treeItems.size()) {
+    if (active >= worktree->childs.size()) {
       active = 0;
     }
 
-    UI::displayTree(*tree);
+    UI::displayTree();
 
     int key = UI::read_key();
     handleKeyStroke(key);
   }
 }
 
-void UI::displayTree(const UI::WorkTree &tree) {
-  std::cout << "\x1b[H" << "  🗁  " << tree.name << "/" << std::endl;
+void UI::displayTree() {
+  std::cout << "\x1b[H" << "  🗁  " << UI::worktree->dirptr->name << "/"
+            << std::endl;
   size_t i = 0;
 
-  if (tree.treeItems.size() == 0) {
+  if (UI::worktree->childs.size() == 0) {
     std::string pad(3, ' ');
     std::cout << "\x1b[" << i + 2 << ";0H" << pad << "No records found!!!"
               << pad << std::endl;
     i++;
   } else {
-    for (; i < tree.treeItems.size(); i++) {
+    for (; i < UI::worktree->childs.size(); i++) {
       std::cout << "\x1b[" << i + 2 << ";0H";
-      if (tree.treeItems[i].type == DIR) {
+      if (UI::worktree->childs[i].type == DIR) {
         std::string pad(6, ' ');
-        std::string line =
-            pad + std::string(CLOSED_DIR) + "  " + tree.treeItems[i].name;
+        std::string line = pad + std::string(CLOSED_DIR) + "  " +
+                           UI::worktree->childs[i].dirptr->name;
         std::string line_with_pad =
             line + std::string(treeItemWidth - line.size() + 3, ' ');
 
@@ -78,9 +80,9 @@ void UI::displayTree(const UI::WorkTree &tree) {
           std::cout << line_with_pad << std::endl;
         }
       } else {
-        std::string pad(6 - tree.treeItems[i].reqptr->method.size(), ' ');
-        std::string line = pad + tree.treeItems[i].reqptr->method + "   " +
-                           tree.treeItems[i].name;
+        std::string pad(6 - UI::worktree->childs[i].reqptr->method.size(), ' ');
+        std::string line = pad + UI::worktree->childs[i].reqptr->method +
+                           "   " + UI::worktree->childs[i].reqptr->name;
         std::string line_with_pad =
             line + std::string(treeItemWidth - line.size(), ' ');
         if (active == i) {
@@ -99,13 +101,13 @@ void UI::displayTree(const UI::WorkTree &tree) {
 }
 
 void UI::drawInputBox() {
-  int row = 5, col = 80, width = 50;
+  int row = UI::inputBoxRow, col = UI::inputBoxCol, width = UI::inputBoxWidth;
   std::string message = "Create New Item:";
 
   // position cursor and show it
-  std::cout << "\x1b[" << row - 1 << ";" << col << "H";
+  std::cout << "\x1b[" << row << ";" << col << "H";
   std::cout << TL;
-  for (int i = 0; i < width; i++) {
+  for (int i = 0; i < width - 2; i++) {
     if (i > 2 && size_t(i) < message.size() + 3)
       std::cout << message.at(i - 3);
     else
@@ -113,34 +115,43 @@ void UI::drawInputBox() {
   }
   std::cout << TR;
 
-  std::cout << "\x1b[" << row << ";" << col << "H";
+  std::cout << "\x1b[" << row + 1 << ";" << col << "H";
   std::cout << VR;
-  for (int i = 0; i < width; i++)
+  for (int i = 0; i < width - 2; i++)
     std::cout << " ";
   std::cout << VR;
 
-  std::cout << "\x1b[" << row + 1 << ";" << col << "H";
+  std::cout << "\x1b[" << row + 2 << ";" << col << "H";
   std::cout << BL;
-  for (int i = 0; i < width; i++)
+  for (int i = 0; i < width - 2; i++)
     std::cout << H;
   std::cout << BR;
 
-  std::cout << "\x1b[" << row << ";" << col + 2 << "H";
+  std::cout << "\x1b[" << row + 1 << ";" << col + 2 << "H";
   std::cout << "\x1b[?25h";
   std::cout.flush();
 }
 
-void UI::goToChild(const TreeItem *item, UI::WorkTree *parent) {
-  if (item->type == REQ)
+void UI::clearInputBox() {
+  for (int i = UI::inputBoxRow; i - UI::inputBoxRow < 3; i++) {
+    std::cout << "\x1b[" << i << ";" << UI::inputBoxCol << "H"
+              << std::string(UI::inputBoxWidth, ' ');
+  }
+  std::cout.flush();
+}
+
+void UI::goToChild(TreeItem *newTree) {
+  if (newTree->type == REQ) {
     return;
-  tree = new UI::WorkTree(item->dirptr, parent);
+  }
+  UI::worktree = newTree;
   active = 0;
 }
 
 void UI::backToParent() {
-  if (tree->parent == nullptr)
+  if (UI::worktree->parent == nullptr)
     return;
-  tree = tree->parent;
+  UI::worktree = UI::worktree->parent;
   active = 0;
 }
 
@@ -173,51 +184,54 @@ void UI::createNewItem() {
     }
   }
 
+  // UI::tree->addTreeItem(entry);
+
   // hide cursor again after input
   std::cout << "\x1b[?25l";
+  UI::clearInputBox();
   std::cout.flush();
 }
 
-UI::TreeItem::TreeItem(const AppDataNS::Dir *dir) {
+UI::TreeItem::TreeItem(AppDataNS::Dir *dir) {
   if (dir == nullptr) {
     throw std::runtime_error("couldn't create worktree");
   }
-  this->name = dir->name;
   this->type = DIR;
   this->reqptr = nullptr;
   this->dirptr = dir;
+  this->parent = nullptr;
+  this->childs = {};
+  for (auto &d : dir->dirs) {
+    this->childs.push_back(UI::TreeItem(&d, this));
+  }
+  for (auto &r : dir->requests) {
+    this->childs.push_back(UI::TreeItem(&r, this));
+  }
 }
 
-UI::TreeItem::TreeItem(const AppDataNS::Request *req) {
+UI::TreeItem::TreeItem(AppDataNS::Dir *dir, UI::TreeItem *parent) {
+  if (dir == nullptr) {
+    throw std::runtime_error("couldn't create worktree");
+  }
+  this->type = DIR;
+  this->reqptr = nullptr;
+  this->dirptr = dir;
+  this->parent = parent;
+  this->childs = {};
+  for (auto &d : dir->dirs) {
+    this->childs.push_back(UI::TreeItem(&d, this));
+  }
+  for (auto &r : dir->requests) {
+    this->childs.push_back(UI::TreeItem(&r, this));
+  }
+}
+
+UI::TreeItem::TreeItem(AppDataNS::Request *req, UI::TreeItem *parent) {
   if (req == nullptr) {
     throw std::runtime_error("couldn't create worktree");
   }
-  this->name = req->name;
   this->type = REQ;
   this->reqptr = req;
   this->dirptr = nullptr;
-}
-
-UI::WorkTree::WorkTree(const AppDataNS::Dir *dir) {
-  this->name = dir->name;
-  this->parent = nullptr;
-
-  for (const AppDataNS::Dir &dir : dir->dirs) {
-    this->treeItems.push_back(UI::TreeItem(&dir));
-  }
-  for (const AppDataNS::Request &req : dir->requests) {
-    this->treeItems.push_back(UI::TreeItem(&req));
-  }
-}
-
-UI::WorkTree::WorkTree(const AppDataNS::Dir *dir, WorkTree *parent) {
-  this->name = dir->name;
   this->parent = parent;
-
-  for (const AppDataNS::Dir &dir : dir->dirs) {
-    this->treeItems.push_back(UI::TreeItem(&dir));
-  }
-  for (const AppDataNS::Request &req : dir->requests) {
-    this->treeItems.push_back(UI::TreeItem(&req));
-  }
 }

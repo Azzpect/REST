@@ -32,34 +32,33 @@ enum WorkTreeItemType { DIR, REQ };
 
 class TreeItem {
 public:
-  TreeItem(const AppDataNS::Dir *);
-  TreeItem(const AppDataNS::Request *);
-  std::string name;
+  TreeItem(AppDataNS::Dir *);
+  TreeItem(AppDataNS::Dir *, TreeItem *);
+  TreeItem(AppDataNS::Request *, TreeItem *);
   WorkTreeItemType type;
-  const AppDataNS::Request *reqptr;
-  const AppDataNS::Dir *dirptr;
+  TreeItem *parent;
+  AppDataNS::Request *reqptr;
+  AppDataNS::Dir *dirptr;
+  std::vector<TreeItem> childs;
 };
-class WorkTree {
-public:
-  WorkTree(const AppDataNS::Dir *);
-  WorkTree(const AppDataNS::Dir *, WorkTree *);
-  std::string name;
-  WorkTree* parent;
-  std::vector<TreeItem> treeItems;
-};
+
 
 void home();
 void ui();
-void displayTree(const WorkTree &);
-void goToChild(const TreeItem *, WorkTree *);
+void displayTree();
+void goToChild(TreeItem *);
 void backToParent();
 void handleKeyStroke(const char &);
 int read_key();
+
+// input box
+const int inputBoxRow = 4, inputBoxCol = 80, inputBoxWidth = 50;
 void drawInputBox();
+void clearInputBox();
 void createNewItem();
 
 inline size_t treeItemWidth = 29;
 inline size_t active = 0;
 inline struct winsize w;
-inline WorkTree* tree = nullptr;
+inline TreeItem* worktree = nullptr;
 } // namespace UI

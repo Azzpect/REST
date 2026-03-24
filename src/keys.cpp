@@ -19,11 +19,11 @@ void UI::handleKeyStroke(const char &key) {
     exit(0);
     break;
   case 'a':
-    UI::createNewItem();
+    //UI::createNewItem();
     break;
   case 'l':
-    if (tree->treeItems.size() == 0) break;
-    UI::goToChild(&tree->treeItems[active], tree);
+    if (UI::worktree->childs.size() == 0) break;
+    UI::goToChild(&UI::worktree->childs[active]);
     break;
   case 'h':
     UI::backToParent();
