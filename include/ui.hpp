@@ -35,13 +35,18 @@ public:
   TreeItem(AppDataNS::Dir *);
   TreeItem(AppDataNS::Dir *, TreeItem *);
   TreeItem(AppDataNS::Request *, TreeItem *);
+  ~TreeItem() {
+    for (auto *child : children) {
+      delete child;
+    }
+  }
   WorkTreeItemType type;
   TreeItem *parent;
   AppDataNS::Request *reqptr;
   AppDataNS::Dir *dirptr;
-  std::vector<TreeItem> childs;
+  std::vector<TreeItem*> children;
+  void addChild(std::string);
 };
-
 
 void home();
 void ui();
@@ -60,5 +65,5 @@ void createNewItem();
 inline size_t treeItemWidth = 29;
 inline size_t active = 0;
 inline struct winsize w;
-inline TreeItem* worktree = nullptr;
+inline TreeItem *worktree = nullptr;
 } // namespace UI

@@ -3,7 +3,7 @@
 #include "nlohmann/json.hpp"
 #include <cstdlib>
 #include <string>
-#include <vector>
+#include <list>
 
 namespace AppDataNS {
 
@@ -19,8 +19,8 @@ public:
   Dir() = default;
   Dir(const std::string&);
   std::string name;
-  std::vector<Request> requests;
-  std::vector<Dir> dirs;
+  std::list<Request> requests;
+  std::list<Dir> dirs;
 };
 
 class AppData {

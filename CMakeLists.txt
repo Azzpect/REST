@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-#find_package(redis++ CONFIG REQUIRED)
+find_package(Boost CONFIG REQUIRED)
 
 # 1️⃣ Executable
 add_executable(rest
@@ -18,4 +18,4 @@ add_executable(rest
 target_compile_options(rest PRIVATE -Wall -Wextra -Werror -Wno-pedantic)
 target_include_directories(rest PRIVATE "${PROJECT_SOURCE_DIR}/include")
 
-#target_link_libraries(logger PRIVATE redis++::redis++_static)
+target_link_libraries(rest PRIVATE Boost::boost)

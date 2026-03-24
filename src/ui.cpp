@@ -1,5 +1,6 @@
 #include "ui.hpp"
 #include "appdata.hpp"
+#include <boost/algorithm/string/trim.hpp>
 #include <iostream>
 #include <regex>
 #include <stdexcept>
@@ -43,7 +44,7 @@ void UI::ui() {
   }
   while (running) {
 
-    if (active >= worktree->childs.size()) {
+    if (active >= worktree->children.size()) {
       active = 0;
     }
 
@@ -59,18 +60,18 @@ void UI::displayTree() {
             << std::endl;
   size_t i = 0;
 
-  if (UI::worktree->childs.size() == 0) {
+  if (UI::worktree->children.size() == 0) {
     std::string pad(3, ' ');
     std::cout << "\x1b[" << i + 2 << ";0H" << pad << "No records found!!!"
               << pad << std::endl;
     i++;
   } else {
-    for (; i < UI::worktree->childs.size(); i++) {
+    for (; i < UI::worktree->children.size(); i++) {
       std::cout << "\x1b[" << i + 2 << ";0H";
-      if (UI::worktree->childs[i].type == DIR) {
+      if (UI::worktree->children[i]->type == DIR) {
         std::string pad(6, ' ');
         std::string line = pad + std::string(CLOSED_DIR) + "  " +
-                           UI::worktree->childs[i].dirptr->name;
+                           UI::worktree->children[i]->dirptr->name;
         std::string line_with_pad =
             line + std::string(treeItemWidth - line.size() + 3, ' ');
 
@@ -80,9 +81,9 @@ void UI::displayTree() {
           std::cout << line_with_pad << std::endl;
         }
       } else {
-        std::string pad(6 - UI::worktree->childs[i].reqptr->method.size(), ' ');
-        std::string line = pad + UI::worktree->childs[i].reqptr->method +
-                           "   " + UI::worktree->childs[i].reqptr->name;
+        std::string pad(6 - UI::worktree->children[i]->reqptr->method.size(), ' ');
+        std::string line = pad + UI::worktree->children[i]->reqptr->method +
+                           "   " + UI::worktree->children[i]->reqptr->name;
         std::string line_with_pad =
             line + std::string(treeItemWidth - line.size(), ' ');
         if (active == i) {
@@ -164,7 +165,7 @@ void UI::createNewItem() {
     int key = read_key();
 
     if (key == 27)
-      return;
+      break;
 
     if (key == '\r' || key == '\n') {
       break;
@@ -184,7 +185,7 @@ void UI::createNewItem() {
     }
   }
 
-  // UI::tree->addTreeItem(entry);
+  UI::worktree->addChild(entry);
 
   // hide cursor again after input
   std::cout << "\x1b[?25l";
@@ -200,12 +201,12 @@ UI::TreeItem::TreeItem(AppDataNS::Dir *dir) {
   this->reqptr = nullptr;
   this->dirptr = dir;
   this->parent = nullptr;
-  this->childs = {};
+  this->children = {};
   for (auto &d : dir->dirs) {
-    this->childs.push_back(UI::TreeItem(&d, this));
+    this->children.push_back(new UI::TreeItem(&d, this));
   }
   for (auto &r : dir->requests) {
-    this->childs.push_back(UI::TreeItem(&r, this));
+    this->children.push_back(new UI::TreeItem(&r, this));
   }
 }
 
@@ -217,12 +218,12 @@ UI::TreeItem::TreeItem(AppDataNS::Dir *dir, UI::TreeItem *parent) {
   this->reqptr = nullptr;
   this->dirptr = dir;
   this->parent = parent;
-  this->childs = {};
+  this->children = {};
   for (auto &d : dir->dirs) {
-    this->childs.push_back(UI::TreeItem(&d, this));
+    this->children.push_back(new UI::TreeItem(&d, this));
   }
   for (auto &r : dir->requests) {
-    this->childs.push_back(UI::TreeItem(&r, this));
+    this->children.push_back(new UI::TreeItem(&r, this));
   }
 }
 
@@ -234,4 +235,19 @@ UI::TreeItem::TreeItem(AppDataNS::Request *req, UI::TreeItem *parent) {
   this->reqptr = req;
   this->dirptr = nullptr;
   this->parent = parent;
+}
+
+void UI::TreeItem::addChild(std::string name) {
+  boost::algorithm::trim(name);
+  if (name == "") return;
+  std::regex r("(.*)(/)");
+  if (std::regex_match(name, r)) {
+    UI::worktree->dirptr->dirs.push_back(AppDataNS::Dir(name));
+    AppDataNS::Dir* newDir = &UI::worktree->dirptr->dirs.back();
+    UI::worktree->children.push_back(new UI::TreeItem(newDir, worktree));
+  } else {
+    UI::worktree->dirptr->requests.push_back(AppDataNS::Request(name));
+    AppDataNS::Request* newReq = &UI::worktree->dirptr->requests.back();
+    UI::worktree->children.push_back(new UI::TreeItem(newReq, worktree));
+  }
 }
